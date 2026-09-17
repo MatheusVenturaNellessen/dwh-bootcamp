@@ -1,41 +1,73 @@
 /*
-Este script cria as tabelas da camada Bronze responsáveis pelo armazenamento dos dados brutos provenientes do sistema CRM.
+Este script cria as tabelas da camada Bronze responsáveis pelo armazenamento dos dados brutos provenientes dos sistemas CRM e ERP.
+
 Etapas executadas:
-	1. Cria a tabela "crm_cust_info" para armazenar os dados dos clientes.
-	2. Cria a tabela "crm_prd_info" para armazenar os dados dos produtos.
-	3. Cria a tabela "crm_sales_details" para armazenar os dados das vendas.
-Convenção de nomenclatura:
-	- Todas as tabelas da camada Bronze devem seguir o padrão "<source_system>_<entity>".
+	1. Remove as tabelas da camada Bronze, caso já existam.
+	2. Cria as tabelas "crm_cust_info", "crm_prd_info" e "crm_sales_details" com os dados provenientes do sistema CRM.
+	3. Cria as tabelas "erp_loc_a101", "erp_px_cat_g1v2" e "erp_cust_az12" com os dados provenientes do sistema ERP.
+
+ATENÇÃO:
+A execução deste script remove completamente as tabelas existentes antes de recriá-las, incluindo todos os dados armazenados.
 */
 
+DROP TABLE IF EXISTS bronze.crm_cust_info;
+
 CREATE TABLE bronze.crm_cust_info (
-	cst_id INT,
-	cst_key VARCHAR(100),
-	cst_firstname VARCHAR(100),
-	cst_lastname VARCHAR(100),
-	cst_marital_status VARCHAR(100),
-	cst_gndr VARCHAR(100),
-	cst_create_date DATE
+	cst_id             INT,
+	cst_key            VARCHAR(50),
+	cst_firstname      VARCHAR(50),
+	cst_lastname       VARCHAR(50),
+	cst_marital_status VARCHAR(50),
+	cst_gndr           VARCHAR(50),
+	cst_create_date    DATE
 );
+
+DROP TABLE IF EXISTS bronze.crm_prd_info;
 
 CREATE TABLE bronze.crm_prd_info (
-	prd_id INT,
-	prd_key VARCHAR(100),
-	prd_nm VARCHAR(100),
-	prd_cost INT,
-	prd_line VARCHAR(100),
+	prd_id       INT,
+	prd_key      VARCHAR(50),
+	prd_nm       VARCHAR(50),
+	prd_cost     INT,
+	prd_line     VARCHAR(50),
 	prd_start_dt DATE,
-	prd_end_dt DATE
+	prd_end_dt   DATE
 );
 
+DROP TABLE IF EXISTS bronze.crm_sales_details;
+
 CREATE TABLE bronze.crm_sales_details (
-	sls_ord_num VARCHAR(100),
-	sls_prd_key VARCHAR(100),
-	sls_cust_id INT,
-	sls_order_dt DATE,
-	sls_ship_dt DATE,
-	sls_due_dt DATE,
-	sls_sales INT,
+	sls_ord_num  VARCHAR(50),
+	sls_prd_key  VARCHAR(50),
+	sls_cust_id  INT,
+	sls_order_dt INT,
+	sls_ship_dt  INT,
+	sls_due_dt   INT,
+	sls_sales    INT,
 	sls_quantity INT,
-	sls_price INT
+	sls_price    INT
+);
+
+DROP TABLE IF EXISTS bronze.erp_loc_a101;
+
+CREATE TABLE bronze.erp_loc_a101 (
+	cid   VARCHAR(50),
+	cntry VARCHAR(50)
+);
+
+DROP TABLE IF EXISTS bronze.erp_px_cat_g1v2;
+
+CREATE TABLE bronze.erp_px_cat_g1v2 (
+	id          VARCHAR(50),
+	cat         VARCHAR(50),
+	subcat      VARCHAR(50),
+	maintenance VARCHAR(50)
+);
+
+DROP TABLE IF EXISTS bronze.erp_cust_az12;
+
+CREATE TABLE bronze.erp_cust_az12 (
+	cid   VARCHAR(50),
+	bdate DATE,
+	gen   VARCHAR(50)
 );
