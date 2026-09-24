@@ -1,12 +1,3 @@
-/*
-* Este script realiza o profiling dos dados da camada Bronze, permitindo identificar inconsistências e ruídos antes da aplicação das transformações e da carga na camada Silver.
-*
-* Com base nos problemas identificados, são definidas e avaliadas regras de transformação:
-*	1. Deduplicação com ROW_NUMBER().
-*	2. Limpeza de dados com TRIM().
-*	3. Padronização de valores e tratamento de valores nulos por meio de expressões CASE.
-*/
-
 /************************
 * Tabela "crm_cst_info" *
 ************************/
@@ -188,3 +179,106 @@ SELECT
 	) -1 AS prd_end_dt
 FROM bronze.crm_prd_info
 ORDER BY 1;
+
+/*****************************
+* Tabela "crm_sales_details" *
+*****************************/
+
+-- Verificar espaços no começo ou fim dos valores textuais (strings)
+-- Expectativa: Não encontrar espaços indesejados em "sls_ord_num"
+
+SELECT 	sls_ord_num
+FROM 	bronze.crm_sales_details
+WHERE 	sls_ord_num <> TRIM(sls_ord_num);
+
+-- Verificar integridade dos relacionamentos entre tabelas
+-- Expectativa: Não encontrar valores divergentes entre "bronze.crm_sales_details" com "silver.crm_cst_info" e "bronze.crm_sales_details" com "silver.crm_prd_info"
+
+SELECT 	*
+FROM 	bronze.crm_sales_details
+WHERE	sls_prd_key NOT IN (SELECT prd_key FROM silver.crm_prd_info);
+
+SELECT	*
+FROM 	bronze.crm_sales_details
+WHERE 	sls_cust_id NOT IN (SELECT cst_id FROM silver.crm_cust_info);
+
+-- Verificar datas inválidas
+-- Expectativa: Não encontrar valores nulou ou iguais a 0, valores com seu comprimento maior ou menos que 8 dígitos e valores extrapolados (1970-01-01 à 2050-01-01)
+
+SELECT	sls_order_dt
+FROM 	bronze.crm_sales_details
+WHERE 	sls_order_dt <= 0
+	OR 	LENGTH(CAST(sls_order_dt AS TEXT)) <> 8
+	OR 	sls_order_dt > 20500101
+	OR 	sls_order_dt < 19700101;
+
+SELECT 	sls_ship_dt
+FROM 	bronze.crm_sales_details
+WHERE 	sls_ship_dt <= 0
+	OR	LENGTH(CAST(sls_ship_dt AS TEXT)) <> 8
+	OR 	sls_ship_dt > 20500101
+	OR 	sls_ship_dt < 19700101;
+
+SELECT	sls_due_dt
+FROM	bronze.crm_sales_details
+WHERE	sls_due_dt <= 0
+	OR	LENGTH(CAST(sls_due_dt AS TEXT)) <> 8
+	OR 	sls_due_dt > 20500101
+	OR	sls_due_dt < 19700101;
+
+SELECT 	*
+FROM	bronze.crm_sales_details
+WHERE 	sls_order_dt > sls_ship_dt 
+	OR 	sls_order_dt > sls_due_dt;
+
+-- Solução
+SELECT
+	CASE 
+		WHEN sls_order_dt <= 0 OR LENGTH(CAST(sls_order_dt AS TEXT)) <> 8 THEN NULL
+		ELSE CAST(CAST(sls_order_dt AS TEXT) AS DATE)
+	END AS sls_order_dt,
+	CASE
+		WHEN sls_ship_dt <= 0 OR LENGTH(CAST(sls_ship_dt AS TEXT)) <> 8 THEN NULL
+		ELSE CAST(CAST(sls_ship_dt AS TEXT) AS DATE)
+	END AS sls_ship_dt,
+	CASE 
+		WHEN sls_due_dt <= 0 OR LENGTH(CAST(sls_due_dt AS TEXT)) <> 8 THEN NULL
+		ELSE CAST(CAST(sls_due_dt AS TEXT) AS DATE)
+	END AS sls_due_dt
+FROM 	bronze.crm_sales_details;
+
+-- Verificar a integridade dos campos "sls_sales", "sls_quantity" e "sls_price"
+-- Regras de negócio:
+--	1. sls_sales = sls_quantity * sls_price
+--	2. Os valores destes campos não podem ser 0, negativos ou nulos
+
+SELECT	sls_sales,
+		sls_quantity,
+		sls_price
+FROM	bronze.crm_sales_details
+WHERE 	sls_sales <> sls_quantity * sls_price
+   	OR 	sls_sales <= 0 OR sls_quantity <= 0 OR sls_price <= 0
+	OR	sls_sales IS NULL OR sls_quantity IS NULL OR sls_price IS NULL
+ORDER BY 1, 2, 3;
+
+-- Solução:
+-- 1. Se o campo "sls_sales" for igual a 0, negativo ou nulo, o mesmo será derivado de "sls_quantity" e "sls_price"
+-- 2. Se o campo "sls_price" for igual a 0 ou nulo, será derivado de "sls_sales" e "sls_quantity"
+-- 3. Se o campo "sls_price" for negativo, será convertido para positivo
+
+SELECT	sls_sales AS old_sls_sales,
+		sls_quantity,
+		sls_price AS old_sls_price,
+		CASE WHEN sls_sales <= 0 OR sls_sales IS NULL OR sls_sales <> sls_quantity * ABS(sls_price)
+			 THEN sls_quantity * ABS(sls_price)
+			 ELSE sls_sales
+		END AS sls_sales,
+		CASE WHEN sls_price <= 0 OR sls_price IS NULL
+			 THEN sls_sales / NULLIF(sls_quantity, 0)
+			 ELSE sls_price
+		END AS sls_price
+FROM	bronze.crm_sales_details
+WHERE 	sls_sales <> sls_quantity * sls_price
+   	OR 	sls_sales <= 0 OR sls_quantity <= 0 OR sls_price <= 0
+	OR	sls_sales IS NULL OR sls_quantity IS NULL OR sls_price IS NULL
+ORDER BY 1, 2, 3;
