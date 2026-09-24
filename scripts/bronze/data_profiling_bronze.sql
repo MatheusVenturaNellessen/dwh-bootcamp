@@ -1,10 +1,9 @@
-/************************
-* Tabela "crm_cst_info" *
-************************/
+-- ==========================================================================================
+-- Tabela "bronze.crm_cst_info"
+-- ==========================================================================================
 
--- Verificar se há valores duplicados ou nulos nas chaves primárias / candidatas
--- Expectativa: Não encontrar valores duplicados ou nulos em "cst_id" e "cst_key"
-
+-- Verificar se há valores duplicados ou nulos na chave primária
+-- Expectativa: Não encontrá-los
 SELECT	 cst_id,
 		 COUNT(*)
 FROM	 bronze.crm_cust_info
@@ -21,21 +20,19 @@ HAVING 	 COUNT(*) > 1
 
 -- Solução
 WITH cte AS (
-    SELECT
-        *,
-        ROW_NUMBER() OVER (
-            PARTITION BY cst_id
-            ORDER BY cst_create_date DESC
-        ) AS flag
-    FROM bronze.crm_cust_info
+	SELECT	*,
+        	ROW_NUMBER() OVER (
+            	PARTITION BY cst_id
+            	ORDER BY cst_create_date DESC
+        	) AS flag
+    FROM 	bronze.crm_cust_info
 )
 SELECT	*
 FROM 	cte
 WHERE 	flag = 1;
 
--- Verificar espaços no começo ou fim das valores textuais (strings)
--- Expectativa: Não encontrar espaços indesejados em "cst_firstname", "cst_lastname", "cst_marital_status" e "cst_gndr"
-
+-- Verificar espaços indesejados em bronze.crm_cst_info.cst_firstname, bronze.crm_cst_info.cst_lastname, bronze.crm_cst_info.cst_marital_status e bronze.crm_cst_info.cst_gndr
+-- Expectativa: Não encontrá-los
 SELECT	cst_firstname
 FROM 	bronze.crm_cust_info
 WHERE 	cst_firstname <> TRIM(cst_firstname);
@@ -62,14 +59,12 @@ SELECT	cst_id,
 		cst_create_date
 FROM 	bronze.crm_cust_info;
 
--- Padronização e consistência dos dados
--- Expectativa: Desabreviar os valores, ex.: M -> Male
+-- Padronização e consistência dos dados, ex.: M -> Male
+SELECT 	DISTINCT cst_gndr
+FROM 	bronze.crm_cust_info;
 
-SELECT DISTINCT cst_gndr
-FROM			bronze.crm_cust_info;
-
-SELECT DISTINCT cst_marital_status
-FROM			bronze.crm_cust_info;
+SELECT 	DISTINCT cst_marital_status
+FROM 	bronze.crm_cust_info;
 
 -- Solução
 SELECT	cst_id,
@@ -89,14 +84,12 @@ SELECT	cst_id,
 		cst_create_date
 FROM 	bronze.crm_cust_info;
 
+-- ==========================================================================================
+-- Tabela "bronze.crm_prd_info"
+-- ==========================================================================================
 
-/************************
-* Tabela "crm_prd_info" *
-************************/
-
--- Verificar se há valores duplicados ou nulos nas chaves primárias / candidatas
--- Expectativa: Não encontrar valores duplicados ou nulos em "prd_id" e "prd_key"
-
+-- Verificar se há valores duplicados ou nulos na chave primária
+-- Expectativa: Não encontrá-los
 SELECT	 prd_id,
 		 COUNT(*)
 FROM 	 bronze.crm_prd_info
@@ -104,19 +97,14 @@ GROUP BY prd_id
 HAVING 	 COUNT(*) > 1
 	OR 	 prd_id IS NULL;
 
--- Verificar coluna "prd_key"
-
+-- Extrair de bronze.crm_prd_info.prd_key o ID da categoria e a Chave do Produto
 SELECT	prd_key,
 		REPLACE(SUBSTRING(prd_key, 1, 5), '-', '_') AS cat_id,
 		SUBSTRING(prd_key, 7, LENGTH(prd_key))      AS prd_key
-FROM 	bronze.crm_prd_info
--- WHERE	REPLACE(SUBSTRING(prd_key, 1, 5), '-', '_') NOT IN (SELECT DISTINCT id FROM bronze.erp_px_cat_g1v2)
--- WHERE 	SUBSTRING(prd_key, 7, LENGTH(prd_key)) /*NOT*/ IN (SELECT DISTINCT sls_prd_key FROM bronze.crm_sales_details) 
-;
+FROM 	bronze.crm_prd_info;
 
--- Verificar espaços no começo ou fim das valores textuais (strings)
--- Expectativa: Não encontrar espaços indesejados em "prd_nm" e "prd_line"
-
+-- Verificar espaços indesejados em bronze.crm_prd_info.prd_nm e bronze.crm_prd_info.prd_line
+-- Expectativa: Não encontrá-los
 SELECT 	prd_nm
 FROM	bronze.crm_prd_info
 WHERE	prd_nm <> TRIM(prd_nm);
@@ -125,27 +113,25 @@ SELECT	prd_line
 FROM 	bronze.crm_prd_info
 WHERE	prd_line <> TRIM(prd_line);
 
--- Solução
+-- Solução: Aplicar a função TRIM()
 SELECT	TRIM(prd_line) AS prd_line
 FROM 	bronze.crm_prd_info;
 
--- Verificar integridade dos valores numéricos
--- Expectativa: Não encontrar valores nulos ou negativos em "prd_cost"
 
+-- Verificar a integridade dos valores numéricos
+-- Expectativa: Não encontrar valores negativos ou nulos
 SELECT	prd_cost
 FROM 	bronze.crm_prd_info
 WHERE	prd_cost IS NULL
 	OR	prd_cost < 0;
 
--- Solução
+-- Solução: Se o valor for nulo, transformá-lo em zero
 SELECT  COALESCE(prd_cost, 0) AS prd_cost
 FROM 	bronze.crm_prd_info;
 
--- Padronização e consistência dos dados
--- Expectativa: Desabreviar os valores, ex.: M -> Mountain
-
-SELECT DISTINCT prd_line
-FROM 			bronze.crm_prd_info;
+-- Padronização e consistência dos dados, ex.: M -> Mountain
+SELECT 	DISTINCT prd_line
+FROM 	bronze.crm_prd_info;
 
 -- Solução
 SELECT
@@ -156,44 +142,42 @@ SELECT
 		WHEN 'T' THEN 'Touring'
 		ELSE 'n/a'
 	END AS prd_line
-FROM bronze.crm_prd_info;
+FROM	bronze.crm_prd_info;
 
 -- Verificar integridade dos campos de data
-
 SELECT	prd_start_dt,
 		prd_end_dt
 FROM 	bronze.crm_prd_info
 WHERE 	prd_end_dt < prd_start_dt;
 
 -- Solução
-SELECT
-	prd_id,
-	prd_key,
-	prd_nm,
-	prd_cost,
-	prd_line,
-	prd_start_dt,
-	LEAD(prd_start_dt, 1, NULL) OVER(
-		PARTITION BY prd_key
-		ORDER BY prd_start_dt
-	) -1 AS prd_end_dt
-FROM bronze.crm_prd_info
+SELECT	 prd_id,
+		 prd_key,
+		 prd_nm,
+		 prd_cost,
+		 prd_line,
+		 prd_start_dt,
+		 LEAD(prd_start_dt, 1, NULL) OVER(
+		 	PARTITION BY prd_key
+		 	ORDER BY prd_start_dt
+		 ) -1 AS prd_end_dt
+FROM 	 bronze.crm_prd_info
 ORDER BY 1;
 
-/*****************************
-* Tabela "crm_sales_details" *
-*****************************/
+-- ==========================================================================================
+-- Tabela "bronze.crm_sales_details"
+-- ==========================================================================================
 
--- Verificar espaços no começo ou fim dos valores textuais (strings)
--- Expectativa: Não encontrar espaços indesejados em "sls_ord_num"
-
+-- Verificar espaços indesejados em bronze.crm_sales_details.sls_ord_num
+-- Expectativa: Não encontrá-los
 SELECT 	sls_ord_num
 FROM 	bronze.crm_sales_details
 WHERE 	sls_ord_num <> TRIM(sls_ord_num);
 
--- Verificar integridade dos relacionamentos entre tabelas
--- Expectativa: Não encontrar valores divergentes entre "bronze.crm_sales_details" com "silver.crm_cst_info" e "bronze.crm_sales_details" com "silver.crm_prd_info"
-
+-- Verificar os relacionamentos das tabelas:
+-- 1. bronze.crm_sales_details.sls_prd_key com silver.crm_cst_info.prd_key
+-- 2. bronze.crm_sales_details.sls_cust_id com silver.crm_prd_info.cst_id
+-- Expectativa: Não encontrar valores divergentes
 SELECT 	*
 FROM 	bronze.crm_sales_details
 WHERE	sls_prd_key NOT IN (SELECT prd_key FROM silver.crm_prd_info);
@@ -202,9 +186,8 @@ SELECT	*
 FROM 	bronze.crm_sales_details
 WHERE 	sls_cust_id NOT IN (SELECT cst_id FROM silver.crm_cust_info);
 
--- Verificar datas inválidas
--- Expectativa: Não encontrar valores nulou ou iguais a 0, valores com seu comprimento maior ou menos que 8 dígitos e valores extrapolados (1970-01-01 à 2050-01-01)
-
+-- Verificar datas inválidas (datas nulas, datas <= 0, datas com comprimento diferente de 8 dígitos ou datas extrapoladas)
+-- Expectativas: Não encontrá-las
 SELECT	sls_order_dt
 FROM 	bronze.crm_sales_details
 WHERE 	sls_order_dt <= 0
@@ -231,7 +214,7 @@ FROM	bronze.crm_sales_details
 WHERE 	sls_order_dt > sls_ship_dt 
 	OR 	sls_order_dt > sls_due_dt;
 
--- Solução
+-- Solução: Anular àquelas datas que ferem a integridade
 SELECT
 	CASE 
 		WHEN sls_order_dt <= 0 OR LENGTH(CAST(sls_order_dt AS TEXT)) <> 8 THEN NULL
@@ -247,38 +230,98 @@ SELECT
 	END AS sls_due_dt
 FROM 	bronze.crm_sales_details;
 
--- Verificar a integridade dos campos "sls_sales", "sls_quantity" e "sls_price"
--- Regras de negócio:
---	1. sls_sales = sls_quantity * sls_price
---	2. Os valores destes campos não podem ser 0, negativos ou nulos
-
-SELECT	sls_sales,
-		sls_quantity,
-		sls_price
-FROM	bronze.crm_sales_details
-WHERE 	sls_sales <> sls_quantity * sls_price
-   	OR 	sls_sales <= 0 OR sls_quantity <= 0 OR sls_price <= 0
-	OR	sls_sales IS NULL OR sls_quantity IS NULL OR sls_price IS NULL
+-- Aplicar as Regras de Negócios nos campos bronze.crm_sales_details.sls_sales, bronze.crm_sales_details.sls_quantity e bronze.crm_sales_details.sls_price
+-- Regras de Negócios:
+-- 1. Sales = Quantity * Price
+-- 2. Os valores destes campos não podem ser iguais a zero, negativos ou nulos
+SELECT	 sls_sales,
+		 sls_quantity,
+		 sls_price
+FROM	 bronze.crm_sales_details
+WHERE 	 sls_sales <> sls_quantity * sls_price
+   	OR 	 sls_sales <= 0 OR sls_quantity <= 0 OR sls_price <= 0
+	OR	 sls_sales IS NULL OR sls_quantity IS NULL OR sls_price IS NULL
 ORDER BY 1, 2, 3;
 
--- Solução:
--- 1. Se o campo "sls_sales" for igual a 0, negativo ou nulo, o mesmo será derivado de "sls_quantity" e "sls_price"
--- 2. Se o campo "sls_price" for igual a 0 ou nulo, será derivado de "sls_sales" e "sls_quantity"
--- 3. Se o campo "sls_price" for negativo, será convertido para positivo
-
-SELECT	sls_sales AS old_sls_sales,
-		sls_quantity,
-		sls_price AS old_sls_price,
-		CASE WHEN sls_sales <= 0 OR sls_sales IS NULL OR sls_sales <> sls_quantity * ABS(sls_price)
-			 THEN sls_quantity * ABS(sls_price)
-			 ELSE sls_sales
-		END AS sls_sales,
-		CASE WHEN sls_price <= 0 OR sls_price IS NULL
-			 THEN sls_sales / NULLIF(sls_quantity, 0)
-			 ELSE sls_price
-		END AS sls_price
-FROM	bronze.crm_sales_details
-WHERE 	sls_sales <> sls_quantity * sls_price
-   	OR 	sls_sales <= 0 OR sls_quantity <= 0 OR sls_price <= 0
-	OR	sls_sales IS NULL OR sls_quantity IS NULL OR sls_price IS NULL
+-- Para solucionar, será aplicado as seguintes Regras de Negócio:
+-- 1. Se o campo Sales for igual a zero, negativo ou nulo, o seu cálculo será: Quantity * ABS(Price)
+-- 2. Se o campo Price for igual a zero ou nulo, o seu cálculo será: Sales / IFNULL(Quantity, 0)
+-- 3. Se o campo Price for negativo, o mesmo será convertido para positivo
+SELECT	 sls_sales AS old_sls_sales,
+		 sls_quantity,
+		 sls_price AS old_sls_price,
+		 CASE WHEN sls_sales <= 0 OR sls_sales IS NULL OR sls_sales <> sls_quantity * ABS(sls_price)
+		 	 THEN sls_quantity * ABS(sls_price)
+		 	 ELSE sls_sales
+		 END AS sls_sales,
+		 CASE WHEN sls_price <= 0 OR sls_price IS NULL
+		 	 THEN sls_sales / NULLIF(sls_quantity, 0)
+		 	 ELSE sls_price
+		 END AS sls_price
+FROM	 bronze.crm_sales_details
+WHERE 	 sls_sales <> sls_quantity * sls_price
+   	OR 	 sls_sales <= 0 OR sls_quantity <= 0 OR sls_price <= 0
+	OR	 sls_sales IS NULL OR sls_quantity IS NULL OR sls_price IS NULL
 ORDER BY 1, 2, 3;
+
+-- ==========================================================================================
+-- Tabela "bronze.erp_cust_az12"
+-- ==========================================================================================
+
+-- Verificar o relacionamento entre as tabelas bronze.erp_cust_az12.cid com silver.crm_cst_info.cst_key 
+-- Expectativa: Não encontrar valores divergentes
+SELECT	*
+FROM	silver.crm_cust_info
+WHERE 	cst_key NOT IN (
+	SELECT
+	CASE
+		WHEN cid LIKE 'NAS%' THEN SUBSTRING(cid, 4, LENGTH(cid))
+		ELSE cid
+	END AS cid
+FROM	bronze.erp_cust_az12);
+
+-- Solução: Remover, quando existir, o perfixo "NAS"
+SELECT
+	CASE
+		WHEN cid LIKE 'NAS%' THEN SUBSTRING(cid, 4, LENGTH(cid))
+		ELSE cid
+	END AS cid
+FROM 	bronze.erp_cust_az12;
+
+-- Verificar integridade dos campos de data
+-- Expectativa: Não encontrar datas extrapoladas (menor que 1926-01-01) ou que estejam no futuro
+SELECT	 *
+FROM	 bronze.erp_cust_az12
+WHERE	 bdate < '1926-01-01'
+	OR 	 bdate > CURRENT_DATE
+ORDER BY bdate;
+
+-- Solução: Anular as datas que estiverem no futuro
+SELECT
+	CASE
+		WHEN bdate > CURRENT_DATE THEN NULL
+		ELSE bdate
+	END AS bdate
+FROM 	bronze.erp_cust_az12;
+
+-- Padronização e consistência dos dados, ex.: F -> Female
+SELECT 	DISTINCT gen
+FROM 	bronze.erp_cust_az12;
+
+-- Solução
+SELECT
+	CASE
+		WHEN UPPER(TRIM(gen)) IN ('F', 'FEMALE') THEN 'Female'
+		WHEN UPPER(TRIM(gen)) IN ('M', 'MALE') THEN 'Male'
+		ELSE 'n/a'
+	END AS gen
+FROM 	bronze.erp_cust_az12;
+
+-- Encontrar apenas os valores: "Female", "Male" e "n/a"
+SELECT 	DISTINCT gen AS old_gen,
+		CASE
+			WHEN UPPER(TRIM(gen)) IN ('F', 'FEMALE') THEN 'Female'
+			WHEN UPPER(TRIM(gen)) IN ('M', 'MALE') THEN 'Male'
+			ELSE 'n/a'
+		END AS gen
+FROM 	bronze.erp_cust_az12;
