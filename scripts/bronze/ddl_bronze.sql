@@ -2,12 +2,11 @@
 Este script cria as tabelas da camada Bronze responsáveis pelo armazenamento dos dados brutos provenientes dos sistemas CRM e ERP.
 
 Etapas executadas:
-	1. Remove as tabelas da camada Bronze, caso já existam.
-	2. Cria as tabelas "crm_cust_info", "crm_prd_info" e "crm_sales_details" com os dados provenientes do sistema CRM.
-	3. Cria as tabelas "erp_loc_a101", "erp_px_cat_g1v2" e "erp_cust_az12" com os dados provenientes do sistema ERP.
+1. Remove as tabelas Bronze existentes, caso existam.
+2. Recria as tabelas mantendo a estrutura dos dados das fontes de origem.
 
-ATENÇÃO:
-A execução deste script remove completamente as tabelas existentes antes de recriá-las, incluindo todos os dados armazenados.
+AVISO:
+- A execução deste script remove permanentemente as tabelas Bronze existentes e todos os dados armazenados nelas.
 */
 
 DROP TABLE IF EXISTS bronze.crm_cust_info;

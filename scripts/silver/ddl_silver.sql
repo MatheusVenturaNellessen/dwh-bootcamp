@@ -1,13 +1,13 @@
 /*
-Este script cria as tabelas da camada Silver destinadas ao armazenamento dos dados limpos e padronizados provenientes das tabelas da camada Bronze dos sistemas CRM e ERP.
+Este script cria as tabelas da camada Silver responsáveis pelo armazenamento dos dados tratados e padronizados provenientes dos sistemas CRM e ERP.
 
 Etapas executadas:
-    1. Remove as tabelas da camada Silver, caso já existam.
-    2. Cria as tabelas "crm_cust_info", "crm_prd_info" e "crm_sales_details", destinadas ao armazenamento dos dados do sistema CRM.
-    3. Cria as tabelas "erp_loc_a101", "erp_px_cat_g1v2" e "erp_cust_az12", destinadas ao armazenamento dos dados do sistema ERP.
+1. Remove as tabelas Silver existentes, caso existam.
+2. Recria as tabelas com a estrutura necessária para receber os dados transformados.
+3. Adiciona a data de criação dos registros no Data Warehouse por meio de dwh_create_date.
 
-ATENÇÃO:
-A execução deste script remove completamente as tabelas existentes antes de recriá-las, incluindo todos os dados armazenados.
+AVISO:
+- A execução deste script remove permanentemente as tabelas Silver existentes e todos os dados armazenados nelas.
 */
 
 DROP TABLE IF EXISTS silver.crm_cust_info;
