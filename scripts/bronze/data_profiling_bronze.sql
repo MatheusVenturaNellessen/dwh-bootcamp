@@ -1,5 +1,5 @@
 -- ==========================================================================================
--- Tabela "bronze.crm_cst_info"
+-- Tabela bronze.crm_cst_info
 -- ==========================================================================================
 
 -- Verificar se há valores duplicados ou nulos na chave primária
@@ -85,7 +85,7 @@ SELECT	cst_id,
 FROM 	bronze.crm_cust_info;
 
 -- ==========================================================================================
--- Tabela "bronze.crm_prd_info"
+-- Tabela bronze.crm_prd_info
 -- ==========================================================================================
 
 -- Verificar se há valores duplicados ou nulos na chave primária
@@ -165,7 +165,7 @@ FROM 	 bronze.crm_prd_info
 ORDER BY 1;
 
 -- ==========================================================================================
--- Tabela "bronze.crm_sales_details"
+-- Tabela bronze.crm_sales_details
 -- ==========================================================================================
 
 -- Verificar espaços indesejados em bronze.crm_sales_details.sls_ord_num
@@ -265,7 +265,7 @@ WHERE 	 sls_sales <> sls_quantity * sls_price
 ORDER BY 1, 2, 3;
 
 -- ==========================================================================================
--- Tabela "bronze.erp_cust_az12"
+-- Tabela bronze.erp_cust_az12
 -- ==========================================================================================
 
 -- Verificar o relacionamento entre as tabelas bronze.erp_cust_az12.cid com silver.crm_cst_info.cst_key 
@@ -325,3 +325,108 @@ SELECT 	DISTINCT gen AS old_gen,
 			ELSE 'n/a'
 		END AS gen
 FROM 	bronze.erp_cust_az12;
+
+-- ==========================================================================================
+-- Tabela bronze.erp_loc_a101
+-- ==========================================================================================
+
+-- Verificar o relacionamento entre as tabelas bronze.erp_loc_a101.cid com silver.crm_cst_info.cst_key 
+-- Expectativa: Não encontrar valores divergentes
+SELECT  cid
+FROM	bronze.erp_loc_a101
+WHERE 	REPLACE(cid, '-', '') NOT IN (
+	SELECT cst_key FROM silver.crm_cust_info);
+
+-- Solução: Substituir "-" por "" em bronze.erp_loc_a101.cid
+SELECT	REPLACE(cid, '-', '') AS cid
+FROM 	bronze.erp_loc_a101;
+
+-- Padronização e consistência dos dados, ex.: United States, US, USA -> United States
+SELECT 	 DISTINCT cntry
+FROM	 bronze.erp_loc_a101
+ORDER BY 1;
+
+-- Solução
+SELECT CASE
+			WHEN UPPER(TRIM(cntry)) = 'DE' THEN 'Germany'
+			WHEN UPPER(TRIM(cntry)) IN ('US', 'USA') THEN 'United States'
+			WHEN TRIM(cntry) = '' OR cntry IS NULL THEN 'n/a'
+			ELSE cntry
+		END AS cntry
+FROM	bronze.erp_loc_a101;
+
+-- Verificação
+SELECT	DISTINCT cntry AS old_cntry,
+		CASE
+			WHEN UPPER(TRIM(cntry)) = 'DE' THEN 'Germany'
+			WHEN UPPER(TRIM(cntry)) IN ('US', 'USA') THEN 'United States'
+			WHEN TRIM(cntry) = '' OR cntry IS NULL THEN 'n/a'
+			ELSE cntry
+		END AS cntry
+FROM	bronze.erp_loc_a101;
+
+-- ==========================================================================================
+-- Tabela bronze.erp_px_cat_g1v2
+-- ==========================================================================================
+
+-- Verificar o relacionamento entre as tabelas bronze.erp_px_cat_g1v2.id com silver.crm_prd_info.cat_id 
+-- Expectativa: Não encontrar valores divergentes
+-- Quais categorias não são utilizadas por nenhum produto?
+SELECT	*
+FROM	bronze.erp_px_cat_g1v2
+WHERE	id NOT IN (SELECT cat_id FROM silver.crm_prd_info);
+
+-- Quais produtos apontam para uma categoria que não existe?
+SELECT	*
+FROM 	silver.crm_prd_info
+WHERE	cat_id NOT IN (SELECT id FROM bronze.erp_px_cat_g1v2);
+
+SELECT	*
+FROM	bronze.erp_px_cat_g1v2 
+WHERE 	id LIKE 'CO_P%';
+
+SELECT	*
+FROM	silver.crm_prd_info
+WHERE 	cat_id LIKE 'CO_P%';
+
+-- Solução
+SELECT	CASE 
+			WHEN id = 'CO_PD' THEN 'CO_PE'
+			ELSE id
+		END AS id
+FROM	bronze.erp_px_cat_g1v2;
+
+-- Validação
+WITH cte AS (
+	SELECT	CASE 
+				WHEN id = 'CO_PD' THEN 'CO_PE'
+				ELSE id
+			END AS id,
+			cat,
+			subcat,
+			maintenance
+	FROM	bronze.erp_px_cat_g1v2
+)
+SELECT 	*
+FROM 	cte
+WHERE 	id NOT IN (SELECT cat_id FROM silver.crm_prd_info);
+
+-- Verificar espaços indesejados em bronze.erp_px_cat_g1v2.cat, bronze.erp_px_cat_g1v2.subat e bronze.erp_px_cat_g1v2.maintenance
+-- Expectativa: Não encontrá-los
+SELECT	*
+FROM	bronze.erp_px_cat_g1v2
+WHERE	cat <> TRIM(cat)
+	OR	subcat <> TRIM(subcat)
+	OR	maintenance <> TRIM(maintenance);
+
+-- Padronização e consistência dos dados
+SELECT	DISTINCT cat
+FROM	bronze.erp_px_cat_g1v2;
+
+SELECT	DISTINCT cat,
+				 subcat
+FROM	bronze.erp_px_cat_g1v2
+ORDER BY 1, 2;
+
+SELECT	DISTINCT maintenance
+FROM	bronze.erp_px_cat_g1v2;
